@@ -1,0 +1,314 @@
+-- Database name: CCR Project
+
+CREATE TABLE IF NOT EXISTS counterparties (
+    counterparty_id INTEGER PRIMARY KEY,
+    counterparty_name VARCHAR(120) NOT NULL,
+    credit_rating VARCHAR(10) NOT NULL,
+    sector VARCHAR(80) NOT NULL,
+    country VARCHAR(80) NOT NULL,
+    legal_entity_type VARCHAR(60) NOT NULL,
+    onboarding_date DATE NOT NULL,
+    risk_limit NUMERIC(18, 2) NOT NULL,
+    is_clearing_member BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS trades (
+    trade_id INTEGER PRIMARY KEY,
+    counterparty_id INTEGER NOT NULL REFERENCES counterparties(counterparty_id),
+    asset_class VARCHAR(60) NOT NULL,
+    product_type VARCHAR(80) NOT NULL,
+    trade_date DATE NOT NULL,
+    maturity_days INTEGER NOT NULL,
+    currency VARCHAR(10) NOT NULL,
+    notional_amount NUMERIC(18, 2) NOT NULL,
+    mtm_exposure NUMERIC(18, 2) NOT NULL,
+    trade_status VARCHAR(30) NOT NULL DEFAULT 'active'
+);
+
+CREATE TABLE IF NOT EXISTS collateral (
+    collateral_id INTEGER PRIMARY KEY,
+    counterparty_id INTEGER NOT NULL REFERENCES counterparties(counterparty_id),
+    collateral_type VARCHAR(60) NOT NULL,
+    currency VARCHAR(10) NOT NULL,
+    collateral_posted NUMERIC(18, 2) NOT NULL,
+    haircut_rate NUMERIC(8, 4) NOT NULL,
+    valuation_date DATE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS margin_calls (
+    margin_call_id INTEGER PRIMARY KEY,
+    counterparty_id INTEGER NOT NULL REFERENCES counterparties(counterparty_id),
+    call_date DATE NOT NULL,
+    initial_margin NUMERIC(18, 2) NOT NULL,
+    variation_margin NUMERIC(18, 2) NOT NULL,
+    margin_call_status VARCHAR(40) NOT NULL,
+    due_date DATE NOT NULL,
+    amount_disputed NUMERIC(18, 2) NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS market_data (
+    market_data_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    asset_class VARCHAR(60) NOT NULL,
+    market_date DATE NOT NULL,
+    market_factor VARCHAR(80) NOT NULL,
+    factor_level NUMERIC(18, 6) NOT NULL,
+    volatility NUMERIC(10, 6) NOT NULL,
+    currency VARCHAR(10) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS stress_scenarios (
+    scenario_id INTEGER PRIMARY KEY,
+    scenario_name VARCHAR(120) NOT NULL,
+    scenario_type VARCHAR(80) NOT NULL,
+    asset_class VARCHAR(60) NOT NULL,
+    shock_factor NUMERIC(10, 6) NOT NULL,
+    stress_loss NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    scenario_horizon_days INTEGER NOT NULL,
+    severity VARCHAR(40) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS exposure_snapshots (
+    snapshot_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    counterparty_id INTEGER NOT NULL REFERENCES counterparties(counterparty_id),
+    snapshot_date DATE NOT NULL,
+    gross_exposure NUMERIC(18, 2) NOT NULL,
+    collateral_posted NUMERIC(18, 2) NOT NULL,
+    net_exposure NUMERIC(18, 2) NOT NULL,
+    initial_margin NUMERIC(18, 2) NOT NULL,
+    variation_margin NUMERIC(18, 2) NOT NULL,
+    stress_loss NUMERIC(18, 2) NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_trades_counterparty_id ON trades(counterparty_id);
+CREATE INDEX IF NOT EXISTS idx_trades_asset_class ON trades(asset_class);
+CREATE INDEX IF NOT EXISTS idx_collateral_counterparty_id ON collateral(counterparty_id);
+CREATE INDEX IF NOT EXISTS idx_margin_calls_counterparty_id ON margin_calls(counterparty_id);
+CREATE INDEX IF NOT EXISTS idx_market_data_asset_class_date ON market_data(asset_class, market_date);
+CREATE INDEX IF NOT EXISTS idx_stress_scenarios_asset_class ON stress_scenarios(asset_class);
+CREATE INDEX IF NOT EXISTS idx_exposure_snapshots_counterparty_date ON exposure_snapshots(counterparty_id, snapshot_date);
+SELECT
+    SUM(mtm_exposure) AS gross_exposure
+FROM trades
+WHERE trade_status = 'active';
+
+WITH trade_exposure AS (
+    SELECT
+        counterparty_id,
+        SUM(mtm_exposure) AS mtm_exposure
+    FROM trades
+    WHERE trade_status = 'active'
+    GROUP BY counterparty_id
+),
+collateral_balance AS (
+    SELECT
+        counterparty_id,
+        SUM(collateral_posted) AS collateral_posted
+    FROM collateral
+    GROUP BY counterparty_id
+)
+SELECT
+    c.counterparty_id,
+    c.counterparty_name,
+    c.credit_rating,
+    c.sector,
+    c.country,
+    te.mtm_exposure,
+    COALESCE(cb.collateral_posted, 0) AS collateral_posted,
+    te.mtm_exposure - COALESCE(cb.collateral_posted, 0) AS net_exposure
+FROM trade_exposure te
+JOIN counterparties c ON c.counterparty_id = te.counterparty_id
+LEFT JOIN collateral_balance cb ON cb.counterparty_id = te.counterparty_id
+ORDER BY net_exposure DESC;
+
+SELECT
+    c.sector,
+    SUM(t.mtm_exposure) AS gross_exposure,
+    COUNT(DISTINCT c.counterparty_id) AS counterparty_count
+FROM trades t
+JOIN counterparties c ON c.counterparty_id = t.counterparty_id
+WHERE t.trade_status = 'active'
+GROUP BY c.sector
+ORDER BY gross_exposure DESC;
+
+SELECT
+    c.country,
+    SUM(t.mtm_exposure) AS gross_exposure,
+    COUNT(DISTINCT c.counterparty_id) AS counterparty_count
+FROM trades t
+JOIN counterparties c ON c.counterparty_id = t.counterparty_id
+WHERE t.trade_status = 'active'
+GROUP BY c.country
+ORDER BY gross_exposure DESC;
+
+SELECT
+    asset_class,
+    SUM(notional_amount) AS total_notional_amount,
+    SUM(mtm_exposure) AS gross_exposure,
+    AVG(maturity_days) AS average_maturity_days
+FROM trades
+WHERE trade_status = 'active'
+GROUP BY asset_class
+ORDER BY gross_exposure DESC;
+
+WITH counterparty_exposure AS (
+    SELECT
+        c.counterparty_id,
+        c.counterparty_name,
+        c.credit_rating,
+        SUM(t.mtm_exposure) AS gross_exposure
+    FROM trades t
+    JOIN counterparties c ON c.counterparty_id = t.counterparty_id
+    WHERE t.trade_status = 'active'
+    GROUP BY c.counterparty_id, c.counterparty_name, c.credit_rating
+)
+SELECT
+    *,
+    RANK() OVER (ORDER BY gross_exposure DESC) AS exposure_rank
+FROM counterparty_exposure
+ORDER BY exposure_rank;
+
+WITH counterparty_exposure AS (
+    SELECT
+        counterparty_id,
+        SUM(mtm_exposure) AS counterparty_exposure
+    FROM trades
+    WHERE trade_status = 'active'
+    GROUP BY counterparty_id
+),
+portfolio AS (
+    SELECT
+        MAX(counterparty_exposure) AS largest_counterparty_exposure,
+        SUM(counterparty_exposure) AS total_exposure
+    FROM counterparty_exposure
+)
+SELECT
+    largest_counterparty_exposure,
+    total_exposure,
+    largest_counterparty_exposure / NULLIF(total_exposure, 0) AS concentration_ratio
+FROM portfolio;
+
+SELECT
+    ss.scenario_id,
+    ss.scenario_name,
+    ss.scenario_type,
+    t.asset_class,
+    SUM(t.mtm_exposure) AS gross_exposure,
+    ss.shock_factor,
+    SUM(t.mtm_exposure * ss.shock_factor) AS stressed_exposure
+FROM trades t
+JOIN stress_scenarios ss ON ss.asset_class = t.asset_class
+WHERE t.trade_status = 'active'
+GROUP BY ss.scenario_id, ss.scenario_name, ss.scenario_type, t.asset_class, ss.shock_factor
+ORDER BY stressed_exposure DESC;
+
+WITH stressed_counterparty AS (
+    SELECT
+        t.counterparty_id,
+        SUM(t.mtm_exposure * ss.shock_factor) AS stressed_exposure
+    FROM trades t
+    JOIN stress_scenarios ss ON ss.asset_class = t.asset_class
+    WHERE t.trade_status = 'active'
+    AND ss.severity = 'Severe'
+    GROUP BY t.counterparty_id
+),
+collateral_balance AS (
+    SELECT
+        counterparty_id,
+        SUM(collateral_posted) AS collateral_posted
+    FROM collateral
+    GROUP BY counterparty_id
+)
+SELECT
+    c.counterparty_id,
+    c.counterparty_name,
+    c.credit_rating,
+    sc.stressed_exposure,
+    COALESCE(cb.collateral_posted, 0) AS collateral_posted,
+    sc.stressed_exposure - COALESCE(cb.collateral_posted, 0) AS stress_loss
+FROM stressed_counterparty sc
+JOIN counterparties c ON c.counterparty_id = sc.counterparty_id
+LEFT JOIN collateral_balance cb ON cb.counterparty_id = sc.counterparty_id
+ORDER BY stress_loss DESC;
+
+WITH exposure AS (
+    SELECT
+        counterparty_id,
+        SUM(mtm_exposure) AS mtm_exposure
+    FROM trades
+    WHERE trade_status = 'active'
+    GROUP BY counterparty_id
+),
+margin_balance AS (
+    SELECT
+        counterparty_id,
+        SUM(initial_margin) AS initial_margin,
+        SUM(variation_margin) AS variation_margin
+    FROM margin_calls
+    GROUP BY counterparty_id
+)
+SELECT
+    c.counterparty_name,
+    e.mtm_exposure,
+    mb.initial_margin,
+    mb.variation_margin,
+    e.mtm_exposure / NULLIF(mb.initial_margin + mb.variation_margin, 0) AS margin_utilization
+FROM exposure e
+JOIN counterparties c ON c.counterparty_id = e.counterparty_id
+JOIN margin_balance mb ON mb.counterparty_id = e.counterparty_id
+ORDER BY margin_utilization DESC;
+WITH active_trades AS (
+    SELECT
+        trade_id,
+        counterparty_id,
+        asset_class,
+        notional_amount,
+        mtm_exposure,
+        maturity_days,
+        CASE
+            WHEN asset_class = 'Rates' THEN 0.005
+            WHEN asset_class = 'FX' THEN 0.04
+            WHEN asset_class = 'Credit' THEN 0.05
+            WHEN asset_class = 'Equity' THEN 0.32
+            WHEN asset_class = 'Commodity' THEN 0.18
+            ELSE 0.10
+        END AS supervisory_factor,
+        LEAST(1, SQRT(maturity_days / 365.0)) AS maturity_factor
+    FROM trades
+    WHERE trade_status = 'active'
+),
+trade_addons AS (
+    SELECT
+        counterparty_id,
+        SUM(mtm_exposure) AS mtm_exposure,
+        SUM(notional_amount) AS notional_amount,
+        SUM(notional_amount * supervisory_factor * maturity_factor) AS pfe_addon
+    FROM active_trades
+    GROUP BY counterparty_id
+),
+collateral_balance AS (
+    SELECT
+        counterparty_id,
+        SUM(collateral_posted) AS collateral_posted
+    FROM collateral
+    GROUP BY counterparty_id
+)
+SELECT
+    c.counterparty_id,
+    c.counterparty_name,
+    c.credit_rating,
+    c.sector,
+    c.country,
+    ta.mtm_exposure,
+    ta.notional_amount,
+    COALESCE(cb.collateral_posted, 0) AS collateral_posted,
+    GREATEST(ta.mtm_exposure - COALESCE(cb.collateral_posted, 0), 0) AS replacement_cost,
+    ta.pfe_addon,
+    1.4 AS alpha,
+    1.4 * (
+        GREATEST(ta.mtm_exposure - COALESCE(cb.collateral_posted, 0), 0)
+        + ta.pfe_addon
+    ) AS saccr_ead
+FROM trade_addons ta
+JOIN counterparties c ON c.counterparty_id = ta.counterparty_id
+LEFT JOIN collateral_balance cb ON cb.counterparty_id = ta.counterparty_id
+ORDER BY saccr_ead DESC;

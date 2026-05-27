@@ -5,7 +5,8 @@ from risk_analytics import (
     build_counterparty_exposure,
     calculate_portfolio_kpis,
     concentration_by_dimension,
-    exposure_threshold_breaches
+    exposure_threshold_breaches,
+    calculate_saccr_exposure
 )
 from stress_testing import run_stress_testing, rating_downgrade_impact
 
@@ -21,7 +22,11 @@ def export_excel_report():
         collateral_df,
         margin_calls_df
     )
-
+    saccr_df = calculate_saccr_exposure(
+        trades_df,
+        collateral_df,
+        counterparties_df
+    )
     kpis = calculate_portfolio_kpis(counterparty_exposure_df)
 
     kpi_df = pd.DataFrame([kpis])
@@ -67,6 +72,7 @@ def export_excel_report():
         trades_df.to_excel(writer, sheet_name="Trades", index=False)
         collateral_df.to_excel(writer, sheet_name="Collateral", index=False)
         margin_calls_df.to_excel(writer, sheet_name="Margin Calls", index=False)
+        saccr_df.to_excel(writer, sheet_name="SA-CCR Exposure", index=False)
 
         workbook = writer.book
 
@@ -138,6 +144,19 @@ def export_excel_report():
         stress_chart.set_y_axis({"name": "INR Exposure"})
         stress_chart.set_style(10)
         stress_sheet.insert_chart("H2", stress_chart)
+        saccr_sheet = writer.sheets["SA-CCR Exposure"]
+
+        saccr_chart = workbook.add_chart({"type": "bar"})
+        saccr_chart.add_series({
+            "name": "SA-CCR EAD",
+            "categories": ["SA-CCR Exposure", 1, 1, 10, 1],
+            "values": ["SA-CCR Exposure", 1, 9, 10, 9]
+        })
+        saccr_chart.set_title({"name": "Top SA-CCR EAD Counterparties"})
+        saccr_chart.set_x_axis({"name": "INR Exposure"})
+        saccr_chart.set_y_axis({"name": "Counterparty"})
+        saccr_chart.set_style(10)
+        saccr_sheet.insert_chart("L2", saccr_chart)
 
     print(f"Excel report created: {output_file}")
 

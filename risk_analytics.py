@@ -125,7 +125,66 @@ def exposure_threshold_breaches(counterparty_exposure_df):
     breaches_df["limit_utilization"] = breaches_df["mtm_exposure"] / breaches_df["risk_limit"]
 
     return breaches_df[breaches_df["limit_utilization"] > 1].sort_values("limit_utilization", ascending=False)
+def calculate_saccr_exposure(trades_df, collateral_df, counterparties_df):
+    active_trades_df = trades_df[trades_df["trade_status"] == "active"].copy()
 
+    supervisory_factors = {
+        "Rates": 0.005,
+        "FX": 0.04,
+        "Credit": 0.05,
+        "Equity": 0.32,
+        "Commodity": 0.18
+    }
+
+    active_trades_df["supervisory_factor"] = active_trades_df["asset_class"].map(supervisory_factors).fillna(0.10)
+
+    active_trades_df["maturity_factor"] = np.minimum(
+        1,
+        np.sqrt(active_trades_df["maturity_days"] / 365)
+    )
+
+    active_trades_df["asset_class_addon"] = (
+        active_trades_df["notional_amount"]
+        * active_trades_df["supervisory_factor"]
+        * active_trades_df["maturity_factor"]
+    )
+
+    trade_level_df = (
+        active_trades_df.groupby("counterparty_id", as_index=False)
+        .agg(
+            mtm_exposure=("mtm_exposure", "sum"),
+            notional_amount=("notional_amount", "sum"),
+            pfe_addon=("asset_class_addon", "sum")
+        )
+    )
+
+    collateral_balance_df = (
+        collateral_df.groupby("counterparty_id", as_index=False)
+        .agg(collateral_posted=("collateral_posted", "sum"))
+    )
+
+    saccr_df = (
+        counterparties_df[["counterparty_id", "counterparty_name", "credit_rating", "sector", "country"]]
+        .merge(trade_level_df, on="counterparty_id", how="left")
+        .merge(collateral_balance_df, on="counterparty_id", how="left")
+    )
+
+    saccr_df[["mtm_exposure", "notional_amount", "pfe_addon", "collateral_posted"]] = saccr_df[
+        ["mtm_exposure", "notional_amount", "pfe_addon", "collateral_posted"]
+    ].fillna(0)
+
+    saccr_df["replacement_cost"] = np.maximum(
+        saccr_df["mtm_exposure"] - saccr_df["collateral_posted"],
+        0
+    )
+
+    saccr_df["alpha"] = 1.4
+
+    saccr_df["saccr_ead"] = saccr_df["alpha"] * (
+        saccr_df["replacement_cost"] + saccr_df["pfe_addon"]
+    )
+
+    return saccr_df.sort_values("saccr_ead", ascending=False)
 if __name__ == "__main__":
     counterparties_df, trades_df, collateral_df, margin_calls_df, market_data_df, stress_scenarios_df = load_core_tables()
 
@@ -135,9 +194,15 @@ if __name__ == "__main__":
         collateral_df,
         margin_calls_df
     )
+    saccr_df = calculate_saccr_exposure(
+        trades_df,
+        collateral_df,
+        counterparties_df
+    )
 
     kpis = calculate_portfolio_kpis(counterparty_exposure_df)
 
+    print(saccr_df.head(15))
     print(counterparty_exposure_df.head(15))
     print(kpis)
     print(concentration_by_dimension(counterparty_exposure_df, "sector"))

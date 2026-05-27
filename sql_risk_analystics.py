@@ -5,6 +5,7 @@ from config import SQLALCHEMY_DATABASE_URL
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 queries = {
+
     "gross_exposure": """
         SELECT
             SUM(mtm_exposure) AS gross_exposure
@@ -137,6 +138,50 @@ queries = {
         JOIN counterparties c ON c.counterparty_id = e.counterparty_id
         JOIN margin_balance mb ON mb.counterparty_id = e.counterparty_id
         ORDER BY margin_utilization DESC
+    """,
+"saccr_exposure": """
+WITH active_trades AS (
+SELECT
+trade_id,counterparty_id, asset_class,notional_amount,mtm_exposure,maturity_days,
+CASE
+WHEN asset_class = 'Rates' THEN 0.005
+WHEN asset_class = 'FX' THEN 0.04
+WHEN asset_class = 'Credit' THEN 0.05
+WHEN asset_class = 'Equity' THEN 0.32
+WHEN asset_class = 'Commodity' THEN 0.18
+ELSE 0.10
+END AS supervisory_factor,
+LEAST(1, SQRT(maturity_days / 365.0)) AS maturity_factor
+FROM trades
+WHERE trade_status = 'active'
+        ),
+trade_addons AS (
+SELECT counterparty_id,
+SUM(mtm_exposure) AS mtm_exposure,
+SUM(notional_amount) AS notional_amount,
+SUM(notional_amount * supervisory_factor * maturity_factor) AS pfe_addon
+FROM active_trades
+GROUP BY counterparty_id
+        ),
+collateral_balance AS (
+SELECT
+counterparty_id,
+SUM(collateral_posted) AS collateral_posted
+FROM collateral
+GROUP BY counterparty_id
+        )
+SELECT c.counterparty_id, c.counterparty_name,c.credit_rating,c.sector, c.country,
+ta.mtm_exposure,
+ta.notional_amount,
+COALESCE(cb.collateral_posted, 0) AS collateral_posted,
+GREATEST(ta.mtm_exposure - COALESCE(cb.collateral_posted, 0), 0) AS replacement_cost,
+ta.pfe_addon,
+1.4 AS alpha,
+1.4 * (GREATEST(ta.mtm_exposure - COALESCE(cb.collateral_posted, 0), 0)+ ta.pfe_addon) AS saccr_ead
+        FROM trade_addons ta
+        JOIN counterparties c ON c.counterparty_id = ta.counterparty_id
+        LEFT JOIN collateral_balance cb ON cb.counterparty_id = ta.counterparty_id
+        ORDER BY saccr_ead DESC
     """
 }
 

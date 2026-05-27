@@ -1,7 +1,7 @@
 from sqlalchemy.engine import URL
 
 DB_NAME = "CCR Project"
-DB_USER = ""
+DB_USER = "     "
 DB_PASSWORD = ""
 DB_HOST = "localhost"
 DB_PORT = 5432
