@@ -1,0 +1,16 @@
+scenario_id,scenario_name,scenario_type,asset_class,shock_factor,stress_loss,scenario_horizon_days,severity
+1,Rates Base Volatility Shock,Volatility Shock,Rates,1.15,0.0,10,Moderate
+2,Rates Liquidity Stress,Liquidity Shock,Rates,1.35,0.0,10,High
+3,Rates Systemic Default Event,Default Shock,Rates,1.75,0.0,30,Severe
+4,Credit Base Volatility Shock,Volatility Shock,Credit,1.15,0.0,10,Moderate
+5,Credit Liquidity Stress,Liquidity Shock,Credit,1.35,0.0,10,High
+6,Credit Systemic Default Event,Default Shock,Credit,1.75,0.0,30,Severe
+7,FX Base Volatility Shock,Volatility Shock,FX,1.15,0.0,10,Moderate
+8,FX Liquidity Stress,Liquidity Shock,FX,1.35,0.0,10,High
+9,FX Systemic Default Event,Default Shock,FX,1.75,0.0,30,Severe
+10,Equity Base Volatility Shock,Volatility Shock,Equity,1.15,0.0,10,Moderate
+11,Equity Liquidity Stress,Liquidity Shock,Equity,1.35,0.0,10,High
+12,Equity Systemic Default Event,Default Shock,Equity,1.75,0.0,30,Severe
+13,Commodity Base Volatility Shock,Volatility Shock,Commodity,1.15,0.0,10,Moderate
+14,Commodity Liquidity Stress,Liquidity Shock,Commodity,1.35,0.0,10,High
+15,Commodity Systemic Default Event,Default Shock,Commodity,1.75,0.0,30,Severe

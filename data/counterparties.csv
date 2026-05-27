@@ -1,0 +1,21 @@
+counterparty_id,counterparty_name,credit_rating,sector,country,legal_entity_type,onboarding_date,risk_limit,is_clearing_member
+1,HDFC Bank Treasury,BBB,Broker Dealer,India,Broker Dealer,2016-12-11,2099380366.0,True
+2,ICICI Securities,A,Corporate Treasury,India,Corporate,2021-06-20,799695320.0,False
+3,Axis Bank Global Markets,BB,Insurance,India,NBFC,2023-12-16,6061739548.0,False
+4,State Bank of India Markets,BBB,Asset Manager,India,Broker Dealer,2017-11-29,5237743281.0,True
+5,Kotak Mahindra Capital,AA,Bank,India,Fund,2019-09-27,5509866305.0,True
+6,Reliance Treasury Services,B,Pension Fund,India,NBFC,2019-02-07,6019920959.0,True
+7,Tata Capital Markets,BBB,NBFC,India,Broker Dealer,2024-07-11,3847681484.0,True
+8,Aditya Birla Finance,BBB,Pension Fund,India,NBFC,2022-08-04,4589003072.0,False
+9,Bajaj Finance Treasury,AA,Insurance,India,Bank,2018-06-30,1693629737.0,False
+10,Mahindra Financial Services,A,Corporate Treasury,India,Fund,2017-12-01,1523077996.0,False
+11,SBI Pension Fund,A,Corporate Treasury,India,Corporate,2021-06-27,5261719992.0,False
+12,LIC Investment Desk,BB,Broker Dealer,India,Bank,2018-03-01,3929899391.0,False
+13,Nippon India Asset Management,BBB,Asset Manager,India,Fund,2017-10-31,4565343718.0,False
+14,Mirae Asset India,BBB,NBFC,India,Bank,2021-12-01,5913742287.0,True
+15,DSP Investment Managers,A,NBFC,India,Corporate,2017-04-28,5034348660.0,True
+16,IIFL Securities,AA,Bank,India,Fund,2022-10-22,4486660954.0,True
+17,Motilal Oswal Financial Services,A,NBFC,India,NBFC,2023-04-01,4524648335.0,False
+18,Edelweiss Financial Services,AAA,Broker Dealer,India,NBFC,2019-04-07,2801663161.0,False
+19,Power Finance Corporation,BBB,Corporate Treasury,India,Fund,2019-09-04,958020383.0,True
+20,REC Limited Treasury,BBB,Insurance,India,Corporate,2024-02-22,3697842377.0,False
