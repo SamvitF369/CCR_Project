@@ -1,121 +1,47 @@
 **CCR Project**
 
-Institutional-style Counterparty Credit Risk and CCP Exposure Analytics platform using PostgreSQL, Python, SQL, Streamlit, Excel, and Jupyter Notebook.
+Counterparty Credit Risk and CCP Exposure Analytics platform using PostgreSQL, Python, SQL, Streamlit, Excel, and Jupyter Notebook.
 
 This project simulates a simplified risk analytics system used by banks, clearing members, CCPs, treasury desks, and derivatives risk teams for counterparty exposure monitoring, collateral analysis, margin analytics, stress testing, concentration risk monitoring, default simulation, Excel reporting, and dashboard reporting.
 
-**GitHub Repository Description**
-
-Institutional-style Counterparty Credit Risk and CCP Exposure Analytics platform using PostgreSQL, Python, SQL, Streamlit, Excel, and Jupyter, with collateral analytics, stress testing, concentration monitoring, and simplified SA-CCR exposure.
-
 **Database Name**
 
-The PostgreSQL database name must be exactly:
-
-**CCR Project**
+The PostgreSQL database name must be exactly:CCR Project
 
 **Technology Stack**
 
-PostgreSQL
-pgAdmin
-Python
-pandas
-numpy
-matplotlib
-SQLAlchemy
-psycopg2
-Jupyter Notebook
-Streamlit
-Excel
-openpyxl
-xlsxwriter
+PostgreSQL,pgAdmin,Python,pandas,numpy,matplotlib,SQLAlchemy,psycopg2,Jupyter Notebook,Streamlit,Excel,openpyxl,xlsxwriter
 **Project Structure**
 
-CCR_Project/
-config.py
-requirements.txt
-data_generation.py
-sql_risk_analytics.py
-database_connection.py
-risk_analytics.py
-stress_testing.py
-risk_visualizations.py
-excel_reporting.py
-streamlit_dashboard.py
-README.md
-sql/database_schema.sql
-sql/analytics_queries.sql
-notebooks/CCR_Project_Workflow.ipynb
-data/
-charts/
-reports/
+CCR_Project/,config.py,requirements.txt,data_generation.py,sql_risk_analytics.py,database_connection.py,risk_analytics.py
+stress_testing.py,risk_visual.py,Excel.py,Dashboard.py,README.md,SQL code,sql/analytics_queries.sql,notebooks/CCR_Project_Workflow.ipynb,data/,charts/,reports/
 
 **Core Database Tables**
-counterparties
-trades
-collateral
-margin_calls
-market_data
-stress_scenarios
-exposure_snapshots
-Core Primary Keys
-counterparty_id
-trade_id
-collateral_id
-margin_call_id
-scenario_id
+counterparties,trades,collateral,margin_calls,market_data,stress_scenarios,exposure_snapshots,Core Primary Keys,counterparty_id,trade_id,collateral_id,margin_call_id,scenario_id
+
 **Core Risk Fields**
 
-counterparty_name
-credit_rating
-sector
-country
-asset_class
-notional_amount
-mtm_exposure
-net_exposure
-collateral_posted
-initial_margin
-variation_margin
-stress_loss
-shock_factor
-maturity_days
-trade_date
+counterparty_name,credit_rating,sector,country,asset_class,notional_amount,mtm_exposure,net_exposure,collateral_posted,initial_margin,variation_margin,stress_loss,shock_factor,maturity_days,trade_date
+
 **Core Python DataFrames**
 
-counterparties_df
-trades_df
-collateral_df
-margin_calls_df
-market_data_df
-stress_scenarios_df
-counterparty_exposure_df
-stressed_results_df
-saccr_df
+counterparties_df,trades_df,collateral_df,margin_calls_df,market_data_df,stress_scenarios_df,counterparty_exposure_df,stressed_results_df,saccr_df
+
 **Core Risk Formulas**
 
 net_exposure = mtm_exposure - collateral_posted
-
 stressed_exposure = mtm_exposure * shock_factor
-
 concentration_ratio = largest_counterparty_exposure / total_exposure
-
 margin_utilization = gross_exposure / (initial_margin + variation_margin)
-
 collateral_coverage_ratio = collateral_posted / mtm_exposure
 
 **SA-CCR Style Exposure Logic**
 
 The project includes a simplified SA-CCR-style exposure calculation.
-
 replacement_cost = max(mtm_exposure - collateral_posted, 0)
-
 asset_class_addon = notional_amount * supervisory_factor * maturity_factor
-
 pfe_addon = sum(asset_class_addon)
-
 saccr_ead = 1.4 * (replacement_cost + pfe_addon)
-
 
 **Supervisory Factor Assumptions**
 
@@ -137,7 +63,7 @@ The SQLAlchemy connection uses the database name CCR Project.
 
 Before running locally, update the PostgreSQL password in configuration.py.
 
-Do not upload a real database password to GitHub.
+
 
 2. Data Generation
 data_generation.py creates realistic synthetic Indian institutional counterparty and derivatives exposure data.
@@ -201,8 +127,6 @@ Run pip install -r requirements.txt.
 
 Step 3: Configure Database Connection
 Open configuration.py and update your local PostgreSQL password.
-
-Do not upload your real password to GitHub.
 
 Step 4: Create Database Schema
 Run sql/database_schema.sql in pgAdmin Query Tool.
